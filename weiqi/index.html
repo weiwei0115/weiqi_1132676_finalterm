@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>圍棋 Go (HTML/CSS/JS) - 提子 / 虛著 / 打劫 / 棋力選擇</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="app">
+    <div class="boardWrap">
+      <div class="topBar">
+        <div class="badge">
+          <span id="turnDot">●</span>
+          <span id="turnText">輪到：黑</span>
+          <small id="aiThinking"></small>
+        </div>
+        <div class="badge badgeSoft">
+          <span>規則：提子 / 自殺禁手 / 簡易打劫 / 虛著</span>
+        </div>
+      </div>
+
+      <canvas id="board" width="900" height="900" aria-label="圍棋棋盤"></canvas>
+
+      <div class="footerHint">
+        操作：點棋盤落子；「虛著」= Pass；「打劫」已啟用（禁止立即回到兩手前局面）。
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <div class="row">
+          <div>
+            <label>棋盤大小</label>
+            <select id="sizeSel">
+              <option value="9">9 x 9</option>
+              <option value="13">13 x 13</option>
+              <option value="19">19 x 19</option>
+            </select>
+          </div>
+          <div>
+            <label>先手</label>
+            <select id="firstSel">
+              <option value="1">黑先</option>
+              <option value="2">白先</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="sp10"></div>
+
+        <div class="row">
+          <div>
+            <label>AI 棋力</label>
+            <select id="aiLevel">
+              <option value="0">Lv0：雙人</option>
+              <option value="1">Lv1：隨機</option>
+              <option value="2" selected>Lv2：提子/擴張</option>
+              <option value="3">Lv3：簡易 Monte Carlo</option>
+            </select>
+          </div>
+          <div>
+            <label>AI 執子</label>
+            <select id="aiColor">
+              <option value="2">白</option>
+              <option value="1">黑</option>
+              <option value="3">黑白都由 AI</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="sp10"></div>
+
+        <div class="row">
+          <div>
+            <label>Lv3 模擬次數（越大越強/越慢）</label>
+            <input id="mcPlayouts" type="number" min="10" max="2000" value="250" />
+          </div>
+          <div>
+            <label>Lv3 每步候選上限</label>
+            <input id="mcCandidates" type="number" min="5" max="80" value="25" />
+          </div>
+        </div>
+
+        <div class="sp12"></div>
+
+        <div class="row3">
+          <button id="newBtn">新局</button>
+          <button id="undoBtn" class="secondary">悔棋</button>
+          <button id="passBtn" class="secondary">虛著</button>
+        </div>
+
+        <div class="sp10"></div>
+
+        <div class="row">
+          <button id="resignBtn" class="danger">認輸</button>
+          <button id="clearLogBtn" class="secondary">清除紀錄</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="kpis">
+          <div class="kpi">
+            <div class="muted">黑提子</div>
+            <div class="v" id="capB">0</div>
+          </div>
+          <div class="kpi">
+            <div class="muted">白提子</div>
+            <div class="v" id="capW">0</div>
+          </div>
+        </div>
+
+        <div class="sp10"></div>
+
+        <div class="hint">
+          - 自殺禁手：落子後自身整團無氣且未提對方子則不合法。<br/>
+          - 打劫（簡易）：禁止「立即」回到兩手前的局面（常見單劫）。<br/>
+          - 「雙活（seki）」會自然出現：因為雙方都不能自殺去填對方最後一口氣而送死，局部可形成互保的活形。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="muted logTitle">對局紀錄</div>
+        <div id="log" class="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
