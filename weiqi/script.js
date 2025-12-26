@@ -284,7 +284,7 @@ function drawLiveAreaOverlay(now){
   const v = board[id];
   if(v === EMPTY) return;
 
-  const info = getGroupInfo(board, hover.x, hover.y);
+  const info = getGroupAndLiberties(board, hover.x, hover.y);
   const { pad, g, r } = geom();
 
   // 高亮該團棋子（半透明圓）
@@ -334,7 +334,7 @@ function findAtariThreats(){
       const v = board[id];
       if(v===EMPTY || vis[id]) continue;
 
-      const info = getGroupInfo(board, x, y);
+      const info = getGroupAndLiberties(board, x, y);
       for(const [sx,sy] of info.stones){
         vis[idx(sx,sy)] = 1;
       }
