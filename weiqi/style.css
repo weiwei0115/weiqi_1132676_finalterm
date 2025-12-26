@@ -204,3 +204,25 @@ button:disabled{
 
 .sp10{ height:10px; }
 .sp12{ height:12px; }
+.scoreBox{
+  display:none;
+  padding:10px;
+  border-radius:14px;
+  background:rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,0.10);
+}
+
+.scoreRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:4px 2px;
+  font-weight:650;
+}
+
+.scoreBox hr{
+  border:none;
+  border-top:1px solid rgba(255,255,255,0.10);
+  margin:8px 0;
+}

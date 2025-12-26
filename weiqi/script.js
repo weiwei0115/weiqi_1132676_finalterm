@@ -23,6 +23,20 @@
   const capB = document.getElementById("capB");
   const capW = document.getElementById("capW");
   const logEl = document.getElementById("log");
+  const komiInput = document.getElementById("komiInput");
+  const scoreBtn = document.getElementById("scoreBtn");
+  const finalizeScoreBtn = document.getElementById("finalizeScoreBtn");
+  const exitScoreBtn = document.getElementById("exitScoreBtn");
+  const scoreBox = document.getElementById("scoreBox");
+
+  const sbStones = document.getElementById("sbStones");
+  const sbTerr = document.getElementById("sbTerr");
+  const sbTotal = document.getElementById("sbTotal");
+  const swStones = document.getElementById("swStones");
+  const swTerr = document.getElementById("swTerr");
+  const swKomi = document.getElementById("swKomi");
+  const swTotal = document.getElementById("swTotal");
+  const winnerText = document.getElementById("winnerText");
 
   // ===== 遊戲狀態 =====
   let N = 9;
@@ -35,6 +49,10 @@
   // 歷史：用於悔棋與簡易打劫判定
   // 每個快照包含：boardSerialized, boardArrCopy, toPlay, captures, lastMove, consecutivePasses
   let history = [];
+  // ===== 點目（結算）狀態 =====
+  let scoringMode = false;
+  let scoreBoard = null;      // board 的複本用來點目
+  let deadSet = new Set();    // 記錄死子（存 y*N+x）
 
   // AI 控制
   let aiBusy = false;
@@ -284,8 +302,8 @@
     log(`${color===BLACK?"黑":"白"}：虛著（Pass）`);
 
     if(consecutivePasses >= 2){
-      log(`雙方連續虛著，通常可進入數目/點目階段（本版本未實作完整點目）。`);
-    }
+        log(`雙方連續虛著：可進入點目（按「進入點目」）。`);
+        }
 
     toPlay = OTHER(toPlay);
     updateHUD();
@@ -594,6 +612,15 @@
   }
 
   canvas.addEventListener("click", (ev) => {
+        // 點目模式：點棋子切換死子
+    if(scoringMode){
+      // 點的是 scoreBoard 上的棋子才可切換
+      if(scoreBoard && scoreBoard[idx(p.x,p.y)] !== EMPTY){
+        toggleDeadAt(p.x,p.y);
+      }
+      return;
+    }
+
     if(aiBusy) return;
 
     const lvl = Number(aiLevelSel.value);
@@ -608,8 +635,188 @@
       log(`不合法：(${p.x+1},${p.y+1}) 可能是自殺禁手或打劫或該點已有子。`);
     }
   });
+  function setScoringUI(on){
+    scoringMode = on;
+    scoreBox.style.display = on ? "block" : "none";
+    finalizeScoreBtn.disabled = !on;
+    exitScoreBtn.disabled = !on;
+
+    // 點目期間禁止 AI 自動落子與一般控制
+    passBtn.disabled = on || aiBusy;
+    undoBtn.disabled = on || aiBusy || history.length <= 1;
+    newBtn.disabled = on || aiBusy;
+    resignBtn.disabled = on || aiBusy;
+
+    // 進入點目按鈕：若已在點目就禁用
+    scoreBtn.disabled = on || aiBusy;
+
+    aiThinking.textContent = on ? "點目模式" : "";
+    updateHUD();
+  }
+
+  function enterScoring(){
+    if(aiBusy) return;
+    scoringMode = true;
+    deadSet.clear();
+    scoreBoard = board.slice(); // 複本
+    setScoringUI(true);
+    renderScore(); // 初次計算
+    draw();        // 重畫（會顯示死子標記）
+    log("進入點目模式：點棋子可切換死子。");
+  }
+
+  function exitScoring(){
+    scoringMode = false;
+    scoreBoard = null;
+    deadSet.clear();
+    setScoringUI(false);
+    draw();
+    log("離開點目模式。");
+  }
+
+  function toggleDeadAt(x,y){
+    const id = idx(x,y);
+    if(!scoreBoard) return;
+    const v = scoreBoard[id];
+    if(v === EMPTY) return;
+
+    if(deadSet.has(id)) deadSet.delete(id);
+    else deadSet.add(id);
+
+    renderScore();
+    draw();
+  }
+
+  function makeScoringBoard(){
+    // 以 scoreBoard 為基礎移除死子，回傳新陣列
+    const b = scoreBoard.slice();
+    for(const id of deadSet){
+      b[id] = EMPTY;
+    }
+    return b;
+  }
+
+  function countAreaScore(b, komi){
+    // 面積點：棋子數 + 地
+    let stonesB = 0, stonesW = 0;
+    for(const v of b){
+      if(v===BLACK) stonesB++;
+      else if(v===WHITE) stonesW++;
+    }
+
+    // flood-fill 空地，判定邊界顏色是否唯一
+    const vis = new Uint8Array(N*N);
+    let terrB = 0, terrW = 0;
+
+    const q = [];
+    for(let y=0;y<N;y++){
+      for(let x=0;x<N;x++){
+        const id0 = idx(x,y);
+        if(b[id0] !== EMPTY || vis[id0]) continue;
+
+        // BFS region
+        q.length = 0;
+        q.push([x,y]);
+        vis[id0] = 1;
+
+        let region = 0;
+        const borderColors = new Set();
+
+        while(q.length){
+          const [cx,cy] = q.pop();
+          region++;
+
+          for(const [nx,ny] of neighbors(cx,cy)){
+            const nid = idx(nx,ny);
+            const vv = b[nid];
+            if(vv === EMPTY){
+              if(!vis[nid]){
+                vis[nid] = 1;
+                q.push([nx,ny]);
+              }
+            }else{
+              borderColors.add(vv);
+            }
+          }
+        }
+
+        if(borderColors.size === 1){
+          const only = [...borderColors][0];
+          if(only === BLACK) terrB += region;
+          else if(only === WHITE) terrW += region;
+        }
+        // 若邊界同時接觸黑白 => 中立地，不算任何一方
+      }
+    }
+
+    const totalB = stonesB + terrB;
+    const totalW = stonesW + terrW + komi;
+
+    return { stonesB, stonesW, terrB, terrW, komi, totalB, totalW };
+  }
+
+  function renderScore(){
+    if(!scoringMode) return;
+    const komi = Number(komiInput.value) || 0;
+    const b = makeScoringBoard();
+    const s = countAreaScore(b, komi);
+
+    sbStones.textContent = String(s.stonesB);
+    sbTerr.textContent = String(s.terrB);
+    sbTotal.textContent = String(s.totalB);
+
+    swStones.textContent = String(s.stonesW);
+    swTerr.textContent = String(s.terrW);
+    swKomi.textContent = String(s.komi);
+    swTotal.textContent = String(s.totalW);
+
+    const diff = s.totalB - s.totalW;
+    if(Math.abs(diff) < 1e-9){
+      winnerText.textContent = "平局";
+    }else if(diff > 0){
+      winnerText.textContent = `黑勝 ${diff.toFixed(1)}`;
+    }else{
+      winnerText.textContent = `白勝 ${(-diff).toFixed(1)}`;
+    }
+  }
+
+  // 在 draw() 最後加上「死子標記」的疊圖
+  const _origDraw = draw;
+  draw = function(){
+    _origDraw();
+
+    if(!scoringMode || !scoreBoard) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const W = rect.width;
+    const pad = W * 0.06;
+    const g = (W - 2*pad) / (N-1);
+    const r = g*0.42;
+
+    // 在死子上畫 X
+    ctx.lineWidth = Math.max(2, W*0.003);
+    ctx.strokeStyle = "rgba(255,80,80,0.85)";
+
+    for(const id of deadSet){
+      const x = id % N;
+      const y = Math.floor(id / N);
+      const cx = pad + x*g;
+      const cy = pad + y*g;
+
+      ctx.beginPath();
+      ctx.moveTo(cx - r*0.55, cy - r*0.55);
+      ctx.lineTo(cx + r*0.55, cy + r*0.55);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(cx + r*0.55, cy - r*0.55);
+      ctx.lineTo(cx - r*0.55, cy + r*0.55);
+      ctx.stroke();
+    }
+  };
 
   // ===== 控制項 =====
+
   newBtn.addEventListener("click", () => newGame());
   undoBtn.addEventListener("click", () => undo());
   passBtn.addEventListener("click", () => {
@@ -623,6 +830,19 @@
     resign(toPlay);
   });
   clearLogBtn.addEventListener("click", () => { logEl.textContent = ""; });
+  scoreBtn.addEventListener("click", () => {
+    enterScoring();
+  });
+
+  exitScoreBtn.addEventListener("click", () => {
+    exitScoring();
+  });
+
+  finalizeScoreBtn.addEventListener("click", () => {
+    if(!scoringMode) return;
+    renderScore();
+    log("確認結算：以上為面積點結果（已依死子標記移除後計地）。");
+  });
 
   sizeSel.addEventListener("change", () => newGame());
   firstSel.addEventListener("change", () => newGame());

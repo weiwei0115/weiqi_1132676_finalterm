@@ -118,6 +118,46 @@
           - 打劫（簡易）：禁止「立即」回到兩手前的局面（常見單劫）。<br/>
           - 「雙活（seki）」會自然出現：因為雙方都不能自殺去填對方最後一口氣而送死，局部可形成互保的活形。
         </div>
+        <!-- 在「認輸 / 清除紀錄」那一排下面，加入點目區塊 -->
+<div class="sp10"></div>
+
+<div class="row">
+  <div>
+    <label>貼目（Komi）</label>
+    <input id="komiInput" type="number" step="0.5" value="7.5" />
+  </div>
+  <div>
+    <label>點目/結算</label>
+    <button id="scoreBtn" class="secondary">進入點目</button>
+  </div>
+</div>
+
+<div class="sp10"></div>
+
+<div class="row">
+  <button id="finalizeScoreBtn">確認結算</button>
+  <button id="exitScoreBtn" class="secondary">離開點目</button>
+</div>
+
+<div class="sp10"></div>
+
+<div class="scoreBox" id="scoreBox">
+  <div class="scoreRow"><span class="muted">黑：棋子</span><span id="sbStones">0</span></div>
+  <div class="scoreRow"><span class="muted">黑：地</span><span id="sbTerr">0</span></div>
+  <div class="scoreRow"><span class="muted">黑：總分</span><span id="sbTotal">0</span></div>
+  <hr />
+  <div class="scoreRow"><span class="muted">白：棋子</span><span id="swStones">0</span></div>
+  <div class="scoreRow"><span class="muted">白：地</span><span id="swTerr">0</span></div>
+  <div class="scoreRow"><span class="muted">白：貼目</span><span id="swKomi">7.5</span></div>
+  <div class="scoreRow"><span class="muted">白：總分</span><span id="swTotal">7.5</span></div>
+  <hr />
+  <div class="scoreRow"><span class="muted">結果</span><span id="winnerText">—</span></div>
+  <div class="hint" style="margin-top:8px">
+    點目模式：點棋子可切換「死子」。死子會被移除後再計算地。<br/>
+    此處採「面積點（中國規則）」：黑/白分 = 棋子數 + 地，白再加貼目。
+  </div>
+</div>
+
       </div>
 
       <div class="card">
