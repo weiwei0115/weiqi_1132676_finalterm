@@ -1,0 +1,206 @@
+:root{
+  --bg:#0b1220;
+  --panel:#0f1a2f;
+  --text:#e8eefc;
+  --muted:#a9b4cc;
+  --accent:#7aa2ff;
+  --wood:#d7b27a;
+  --wood2:#caa46b;
+}
+
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
+  background:linear-gradient(120deg,var(--bg),#070b14);
+  color:var(--text);
+  min-height:100vh;
+  display:flex;
+  align-items:stretch;
+  justify-content:center;
+  padding:18px;
+}
+
+.app{
+  width:min(1100px, 100%);
+  display:grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap:14px;
+}
+
+.boardWrap{
+  background:linear-gradient(145deg,var(--panel), #0b1426);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:16px;
+  padding:14px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.35);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.topBar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:999px;
+  background:rgba(122,162,255,.12);
+  border:1px solid rgba(122,162,255,.28);
+  color:var(--text);
+  font-weight:600;
+  letter-spacing:.2px;
+}
+
+.badge small{
+  color:var(--muted);
+  font-weight:600;
+}
+
+.badgeSoft{
+  background:rgba(255,255,255,.06);
+  border-color:rgba(255,255,255,.14);
+}
+
+.muted{ color:var(--muted); }
+
+canvas{
+  width:100%;
+  height:auto;
+  aspect-ratio: 1 / 1;
+  border-radius:14px;
+  background: radial-gradient(1200px 800px at 30% 20%, var(--wood), var(--wood2));
+  border:1px solid rgba(0,0,0,.15);
+  box-shadow: inset 0 2px 10px rgba(255,255,255,.12);
+  touch-action:none;
+}
+
+.side{
+  background:linear-gradient(145deg,var(--panel), #0b1426);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:16px;
+  padding:14px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.35);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.card{
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;
+  padding:12px;
+  background:rgba(255,255,255,0.03);
+}
+
+.row{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:10px;
+}
+
+.row3{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap:10px;
+}
+
+label{
+  display:block;
+  font-size:13px;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+
+select, input[type="number"], button{
+  width:100%;
+  padding:10px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(0,0,0,0.18);
+  color:var(--text);
+  outline:none;
+}
+
+input[type="number"]{ appearance:textfield; }
+
+button{
+  cursor:pointer;
+  font-weight:700;
+  letter-spacing:.2px;
+  background:rgba(122,162,255,.14);
+  border:1px solid rgba(122,162,255,.30);
+}
+
+button.secondary{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  font-weight:650;
+}
+
+button.danger{
+  background:rgba(255,80,80,.14);
+  border:1px solid rgba(255,80,80,.28);
+}
+
+button:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.kpis{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.kpi{
+  padding:10px;
+  border-radius:14px;
+  background:rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,0.10);
+}
+
+.kpi .v{
+  font-size:20px;
+  font-weight:800;
+  margin-top:2px;
+}
+
+.hint{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.45;
+}
+
+.logTitle{
+  margin-bottom:8px;
+  font-weight:700;
+}
+
+.log{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size:12px;
+  line-height:1.5;
+  max-height:190px;
+  overflow:auto;
+  white-space:pre-wrap;
+  color:#dce6ff;
+}
+
+.footerHint{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.sp10{ height:10px; }
+.sp12{ height:12px; }
