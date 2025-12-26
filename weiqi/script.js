@@ -37,6 +37,8 @@
   const swKomi = document.getElementById("swKomi");
   const swTotal = document.getElementById("swTotal");
   const winnerText = document.getElementById("winnerText");
+  const showLiveAreaEl = document.getElementById("showLiveArea");
+  const showAtariEl = document.getElementById("showAtari");
 
   // ===== 遊戲狀態 =====
   let N = 9;
@@ -49,6 +51,11 @@
   // 歷史：用於悔棋與簡易打劫判定
   // 每個快照包含：boardSerialized, boardArrCopy, toPlay, captures, lastMove, consecutivePasses
   let history = [];
+  // ===== 視覺/動畫狀態 =====
+let hover = { x: -1, y: -1 };         // 滑鼠目前指向的座標（交叉點）
+let captureAnims = [];               // 提子動畫隊列
+let rafId = null;                    // requestAnimationFrame id
+
   // ===== 點目（結算）狀態 =====
   let scoringMode = false;
   let scoreBoard = null;      // board 的複本用來點目
@@ -67,6 +74,21 @@
     // 用字串序列化：足夠做簡易打劫比較
     return b.join("");
   }
+function countEmpty(b){
+  let e = 0;
+  for(const v of b) if(v === EMPTY) e++;
+  return e;
+}
+
+function countLegalNonPass(color){
+  let c = 0;
+  for(let y=0;y<N;y++){
+    for(let x=0;x<N;x++){
+      if(board[idx(x,y)]===EMPTY && isLegalMove(x,y,color)) c++;
+    }
+  }
+  return c;
+}
 
   function log(msg){
     const t = new Date();
@@ -224,8 +246,254 @@
         }
       }
     }
-    return { stones, liberties: libs.size };
+    return { stones, liberties: libs.size, libertySet: libs, color };
   }
+// ====== Canvas 座標換算（和你點擊用的同一套） ======
+function geom(){
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width;
+  const pad = W * 0.06;
+  const g = (W - 2*pad) / (N-1);
+  const r = g*0.42;
+  return { rect, W, pad, g, r };
+}
+
+function toCanvasXY(x, y){
+  const { pad, g } = geom();
+  return { cx: pad + x*g, cy: pad + y*g };
+}
+
+// ====== 提子動畫：在 applyMove 捕捉被提的石頭 ======
+function addCaptureAnim(stones, color){
+  const t0 = performance.now();
+  for(const [x,y] of stones){
+    captureAnims.push({ x, y, color, t0, dur: 280 });
+  }
+  ensureRAF();
+}
+
+// 你要在 applyMove() 裡，removeGroup 之前把 g.stones 傳進來。
+// 我下面也給你 applyMove 的「改法」(見下一段)
+
+// ====== 活棋範圍顯示（hover 同色連通團 + 氣） ======
+function drawLiveAreaOverlay(now){
+  if(!showLiveAreaEl || !showLiveAreaEl.checked) return;
+  if(hover.x < 0) return;
+
+  const id = idx(hover.x, hover.y);
+  const v = board[id];
+  if(v === EMPTY) return;
+
+  const info = getGroupInfo(board, hover.x, hover.y);
+  const { pad, g, r } = geom();
+
+  // 高亮該團棋子（半透明圓）
+  ctx.save();
+  ctx.fillStyle = "rgba(122,162,255,0.18)";
+  for(const [x,y] of info.stones){
+    const { cx, cy } = toCanvasXY(x,y);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r*0.92, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // 標出氣（小圓點）
+  ctx.fillStyle = "rgba(80,220,160,0.85)";
+  for(const libId of info.libertySet){
+    const lx = libId % N;
+    const ly = Math.floor(libId / N);
+    const { cx, cy } = toCanvasXY(lx,ly);
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.max(2, r*0.18), 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // 顯示氣數（小字）
+  const { cx, cy } = toCanvasXY(hover.x, hover.y);
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.beginPath();
+  ctx.roundRect(cx - r*0.8, cy - r*1.25, r*1.6, r*0.55, 6);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  ctx.font = `${Math.max(12, g*0.18)}px ui-monospace, monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`氣:${info.liberties}`, cx, cy - r*0.98);
+
+  ctx.restore();
+}
+
+// ====== 叫吃警告（Atari）：找所有 liberties==1 的團 ======
+function findAtariThreats(){
+  const vis = new Uint8Array(N*N);
+  const threats = []; // {color, stones, libertyId}
+
+  for(let y=0;y<N;y++){
+    for(let x=0;x<N;x++){
+      const id = idx(x,y);
+      const v = board[id];
+      if(v===EMPTY || vis[id]) continue;
+
+      const info = getGroupInfo(board, x, y);
+      for(const [sx,sy] of info.stones){
+        vis[idx(sx,sy)] = 1;
+      }
+
+      if(info.liberties === 1){
+        const libertyId = info.libertySet.values().next().value;
+        threats.push({ color: info.color, stones: info.stones, libertyId });
+      }
+    }
+  }
+  return threats;
+}
+
+function drawAtariOverlay(now){
+  if(!showAtariEl || !showAtariEl.checked) return;
+
+  const threats = findAtariThreats();
+  if(threats.length === 0) return;
+
+  const { r } = geom();
+  const pulse = 0.5 + 0.5*Math.sin(now/140); // 0..1
+
+  ctx.save();
+
+  for(const t of threats){
+    // 1) 被叫吃的那團：紅色外圈
+    ctx.strokeStyle = "rgba(255,80,80,0.9)";
+    ctx.lineWidth = Math.max(2, r*0.12);
+    for(const [x,y] of t.stones){
+      const { cx, cy } = toCanvasXY(x,y);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r*0.92, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    // 2) 唯一一口氣的位置：閃爍圈（提示打吃點/救命點）
+    const lx = t.libertyId % N;
+    const ly = Math.floor(t.libertyId / N);
+    const { cx, cy } = toCanvasXY(lx,ly);
+
+    ctx.strokeStyle = `rgba(255,220,80,${0.35 + 0.45*pulse})`;
+    ctx.lineWidth = Math.max(2, r*0.14);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r*(0.55 + 0.25*pulse), 0, Math.PI*2);
+    ctx.stroke();
+
+    ctx.fillStyle = `rgba(255,220,80,${0.12 + 0.10*pulse})`;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r*(0.35 + 0.20*pulse), 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+
+  // 有 atari 且開啟提示 => 需要持續動畫
+  ensureRAF();
+}
+
+// ====== 提子動畫疊圖 ======
+function drawCaptureAnims(now){
+  if(captureAnims.length === 0) return;
+
+  const { r } = geom();
+  const alive = [];
+
+  ctx.save();
+  for(const a of captureAnims){
+    const t = (now - a.t0) / a.dur;
+    if(t >= 1) continue;
+
+    alive.push(a);
+
+    const scale = 1 - t;              // 1 -> 0
+    const alpha = 0.85 * (1 - t);     // 0.85 -> 0
+    const { cx, cy } = toCanvasXY(a.x, a.y);
+
+    // 畫一顆「正在消失」的棋子（用簡化漸層）
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r*scale, 0, Math.PI*2);
+    const grad = ctx.createRadialGradient(cx-r*0.25, cy-r*0.25, r*0.1, cx, cy, r);
+    if(a.color === BLACK){
+      grad.addColorStop(0, "#4b4b4b");
+      grad.addColorStop(1, "#0b0b0b");
+    }else{
+      grad.addColorStop(0, "#ffffff");
+      grad.addColorStop(1, "#d7d7d7");
+    }
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+  ctx.restore();
+
+  captureAnims = alive;
+  if(captureAnims.length > 0) ensureRAF();
+}
+
+// ====== 把疊圖掛到 draw 後面（不破壞你原 draw / scoring wrapper） ======
+(function hookDraw(){
+  const baseDraw = draw;
+  draw = function(){
+    baseDraw();
+    const now = performance.now();
+    drawCaptureAnims(now);
+    drawLiveAreaOverlay(now);
+    drawAtariOverlay(now);
+  };
+})();
+
+// ====== hover 事件：只有勾選活棋範圍顯示才需要 ======
+canvas.addEventListener("mousemove", (ev) => {
+  if(!showLiveAreaEl || !showLiveAreaEl.checked) return;
+
+  const p = canvasToCoord(ev); // 你原本已有這個函式
+  if(!p){
+    if(hover.x !== -1){
+      hover = {x:-1, y:-1};
+      draw();
+    }
+    return;
+  }
+  if(p.x !== hover.x || p.y !== hover.y){
+    hover = p;
+    draw();
+  }
+});
+
+canvas.addEventListener("mouseleave", () => {
+  if(hover.x !== -1){
+    hover = {x:-1, y:-1};
+    draw();
+  }
+});
+
+// ====== 勾選切換時重繪 / 控制 RAF ======
+showLiveAreaEl?.addEventListener("change", () => draw());
+showAtariEl?.addEventListener("change", () => {
+  draw();
+  if(showAtariEl.checked) ensureRAF();
+});
+
+// ====== RAF：只有需要動畫（提子/叫吃閃爍）才跑 ======
+function ensureRAF(){
+  if(rafId) return;
+  const tick = () => {
+    rafId = null;
+
+    // 如果正在點目模式，你可以選擇仍顯示叫吃/活棋；不想顯示就加條件 return
+    const need =
+      (captureAnims.length > 0) ||
+      (showAtariEl && showAtariEl.checked);
+
+    if(need){
+      draw();
+      rafId = requestAnimationFrame(tick);
+    }
+  };
+  rafId = requestAnimationFrame(tick);
+}
 
   function removeGroup(b, stones){
     for(const [x,y] of stones){
@@ -277,6 +545,7 @@
         const g = getGroupAndLiberties(board, nx, ny);
         if(g.liberties === 0){
           captured += g.stones.length;
+          addCaptureAnim(g.stones, OTHER(color)); // 被提的是對方色
           removeGroup(board, g.stones);
         }
       }
@@ -394,21 +663,57 @@
     if(lvl === 2){
       let best = null;
       let bestScore = -1e18;
+      let bestNonPass = null, bestNonPassScore = -1e18;
       for(const m of moves){
         const sc = scoreHeuristicMove(color, m);
         if(sc > bestScore){
           bestScore = sc;
           best = m;
         }
+        if(!m.pass && sc > bestNonPassScore){
+      bestNonPassScore = sc;
+      bestNonPass = m;
+    }
       }
+        // 「該 pass」規則：如果最佳非 pass 也很差，且目前不是早期，就允許 pass
+  // 門檻你可自行調整（-2 / 0 / 2）
+  const empties = countEmpty(board);
+  const emptyRatio = empties / (N*N);
+  const lateEnough = (emptyRatio < 0.45); // 後盤/官子階段
+
       return best || moves[moves.length-1];
     }
-
+ if(lateEnough && bestNonPass && bestNonPassScore < 1){
+    // 代表下子幾乎沒價值，偏向 pass 收束
+    return { pass:true };
+  }
     return chooseMonteCarlo(color);
   }
 
   function scoreHeuristicMove(color, m){
-    if(m.pass) return -5;
+    if(m.pass){
+  // Pass 的價值：盤面越接近收束、可下的有意義著越少，Pass 越合理
+  // empty 比例越低 => 越接近終局
+  const empties = countEmpty(board);
+  const emptyRatio = empties / (N*N);
+
+  // 可下的合法非 pass 著越少 => 越容易 Pass
+  const legal = countLegalNonPass(color);
+
+  // 基礎：早期不鼓勵 pass，後期逐步鼓勵
+  // emptyRatio 低（例如 < 0.35）時，pass 分數會顯著上升
+  let s = -10 + (1 - emptyRatio) * 18;
+
+  // 合法著很少時，再加分
+  if(legal <= 6) s += 6;
+  else if(legal <= 12) s += 3;
+
+  // 如果已經有人 pass，連續 pass 更有意義（可能準備收束）
+  if(consecutivePasses === 1) s += 3;
+
+  return s;
+}
+
     const x = m.x, y = m.y;
 
     const b2 = cloneBoardArr(board);
@@ -449,7 +754,12 @@
     const scored = moves.map(m => ({m, s: scoreHeuristicMove(color, m)}))
                         .sort((a,b)=>b.s-a.s);
 
-    const candidates = scored.slice(0, Math.min(candLimit, scored.length)).map(o=>o.m);
+    let candidates = scored.slice(0, Math.min(candLimit, scored.length)).map(o=>o.m);
+
+// 保證包含 pass（避免 MC 永遠不考慮 pass）
+if(!candidates.some(m => m.pass)){
+  candidates.push({pass:true});
+}
 
     let best = candidates[0];
     let bestWin = -1;

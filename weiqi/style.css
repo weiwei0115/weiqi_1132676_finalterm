@@ -226,3 +226,24 @@ button:disabled{
   border-top:1px solid rgba(255,255,255,0.10);
   margin:8px 0;
 }
+.checkRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 10px;
+  border-radius:12px;
+  background:rgba(0,0,0,0.12);
+  border:1px solid rgba(255,255,255,0.08);
+}
+
+.checkRow input{
+  width:18px;
+  height:18px;
+}
+
+.checkLabel{
+  margin:0;
+  font-size:13px;
+  color:var(--text);
+  cursor:pointer;
+}
