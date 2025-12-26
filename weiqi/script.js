@@ -2,6 +2,7 @@
   // ===== 基本常數 =====
   const EMPTY = 0, BLACK = 1, WHITE = 2;
   const OTHER = c => (c === BLACK ? WHITE : BLACK);
+const PAD_RATIO = 0.03; // 你要的棋盤邊界比例
 
   // ===== DOM =====
   const canvas = document.getElementById("board");
@@ -112,15 +113,13 @@ function countLegalNonPass(color){
 
   // ===== 棋盤繪製 =====
   function draw(){
+    const { rect, W, pad, g } = geom();
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
     canvas.width = Math.floor(rect.width * dpr);
     canvas.height = Math.floor(rect.width * dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0);
 
-    const W = rect.width;
-    const pad = W * 0.06;
-    const g = (W - 2*pad) / (N-1);
+
 
     ctx.clearRect(0,0,W,W);
 
@@ -905,13 +904,12 @@ if(!candidates.some(m => m.pass)){
 
   // ===== 事件：點棋盤落子 =====
   function canvasToCoord(ev){
-    const rect = canvas.getBoundingClientRect();
+    
+    const { rect, pad, g } = geom();
     const x = (ev.clientX - rect.left);
     const y = (ev.clientY - rect.top);
 
-    const W = rect.width;
-    const pad = W * 0.06;
-    const g = (W - 2*pad) / (N-1);
+
 
     const ix = Math.round((x - pad) / g);
     const iy = Math.round((y - pad) / g);
