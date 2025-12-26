@@ -47,6 +47,7 @@
   let captures = { [BLACK]: 0, [WHITE]: 0 };
   let lastMove = null; // {x,y} or {pass:true}
   let consecutivePasses = 0;
+  let cachedGeom = null;
 
   // 歷史：用於悔棋與簡易打劫判定
   // 每個快照包含：boardSerialized, boardArrCopy, toPlay, captures, lastMove, consecutivePasses
@@ -250,14 +251,17 @@ function countLegalNonPass(color){
   }
 // ====== Canvas 座標換算（和你點擊用的同一套） ======
 function geom(){
+  if(cachedGeom) return cachedGeom;
+
   const rect = canvas.getBoundingClientRect();
   const W = rect.width;
-  const pad = W * 0.06;
+  const pad = W * PAD_RATIO;
   const g = (W - 2*pad) / (N-1);
-  const r = g*0.42;
-  return { rect, W, pad, g, r };
-}
+  const r = g * 0.42;
 
+  cachedGeom = { rect, W, pad, g, r };
+  return cachedGeom;
+}
 function toCanvasXY(x, y){
   const { pad, g } = geom();
   return { cx: pad + x*g, cy: pad + y*g };
@@ -922,6 +926,8 @@ if(!candidates.some(m => m.pass)){
   }
 
   canvas.addEventListener("click", (ev) => {
+    const p = canvasToCoord(ev);
+    if(!p) return;
         // 點目模式：點棋子切換死子
     if(scoringMode){
       // 點的是 scoreBoard 上的棋子才可切換
@@ -936,8 +942,7 @@ if(!candidates.some(m => m.pass)){
     const lvl = Number(aiLevelSel.value);
     if(lvl !== 0 && aiEnabledForColor(toPlay)) return; // AI 執子時禁點
 
-    const p = canvasToCoord(ev);
-    if(!p) return;
+    
 
     if(isLegalMove(p.x,p.y,toPlay)){
       applyMove(p.x,p.y,toPlay);
@@ -1159,7 +1164,11 @@ if(!candidates.some(m => m.pass)){
   aiLevelSel.addEventListener("change", () => { updateHUD(); maybeAIMove(); });
   aiColorSel.addEventListener("change", () => { updateHUD(); maybeAIMove(); });
 
-  window.addEventListener("resize", () => draw());
+window.addEventListener("resize", () => {
+  cachedGeom = null;
+  draw();
+});
+
 
   function newGame(){
     if(aiBusy) return;
