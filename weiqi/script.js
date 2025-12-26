@@ -653,55 +653,54 @@ function ensureRAF(){
     }, 30);
   }
 
-  function chooseAIMove(color, lvl){
-    const moves = getAllLegalMoves(color);
-    if(moves.length === 1) return moves[0];
+function chooseAIMove(color, lvl){
+  const moves = getAllLegalMoves(color);
+  if(moves.length === 1) return moves[0];
 
-    if(lvl === 1){
-      const nonPass = moves.filter(m => !m.pass);
-      const pool = nonPass.length ? nonPass : moves;
-      return pool[(Math.random() * pool.length) | 0];
-    }
-
-    if(lvl === 2){
-  let best = null;
-  let bestScore = -1e18;
-
-  let bestNonPass = null;
-  let bestNonPassScore = -1e18;
-
-  for(const m of moves){
-    const sc = scoreHeuristicMove(color, m);
-
-    if(sc > bestScore){
-      bestScore = sc;
-      best = m;
-    }
-    if(!m.pass && sc > bestNonPassScore){
-      bestNonPassScore = sc;
-      bestNonPass = m;
-    }
+  // Lv1: 隨機（盡量不 pass）
+  if(lvl === 1){
+    const nonPass = moves.filter(m => !m.pass);
+    const pool = nonPass.length ? nonPass : moves;
+    return pool[(Math.random() * pool.length) | 0];
   }
 
-  // 後盤判斷
-  const empties = countEmpty(board);
-  const emptyRatio = empties / (N * N);
-  const lateEnough = (emptyRatio < 0.45);
+  // Lv2: Heuristic（會在後盤判斷是否 pass）
+  if(lvl === 2){
+    let best = null;
+    let bestScore = -1e18;
 
-  // 後盤且所有非 pass 著都沒什麼價值 → pass 收束
-  if(lateEnough && bestNonPass && bestNonPassScore < 1){
-    return { pass:true };
+    let bestNonPass = null;
+    let bestNonPassScore = -1e18;
+
+    for(const m of moves){
+      const sc = scoreHeuristicMove(color, m);
+
+      if(sc > bestScore){
+        bestScore = sc;
+        best = m;
+      }
+      if(!m.pass && sc > bestNonPassScore){
+        bestNonPassScore = sc;
+        bestNonPass = m;
+      }
+    }
+
+    // 後盤判斷（空點少 -> 可考慮收束 pass）
+    const empties = countEmpty(board);
+    const emptyRatio = empties / (N * N);
+    const lateEnough = (emptyRatio < 0.45);
+
+    if(lateEnough && bestNonPass && bestNonPassScore < 1){
+      return { pass:true };
+    }
+
+    return best || moves[moves.length - 1];
   }
 
-  return best || moves[moves.length - 1];
+  // Lv3: Monte Carlo
+  return chooseMonteCarlo(color);
 }
 
- if(lateEnough && bestNonPass && bestNonPassScore < 1){
-    // 代表下子幾乎沒價值，偏向 pass 收束
-    return { pass:true };
-  }
-    return chooseMonteCarlo(color);
-  }
 
   function scoreHeuristicMove(color, m){
     if(m.pass){
