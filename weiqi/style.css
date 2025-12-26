@@ -23,7 +23,7 @@ body{
 }
 
 .app{
-  width:min(2000px, 100%);
+  width: none;
   display:grid;
   grid-template-columns: 1.2fr 0.8fr;
   gap:14px;
