@@ -205,7 +205,7 @@ button:disabled{
 .sp10{ height:10px; }
 .sp12{ height:12px; }
 .scoreBox{
-  display:none;
+  display:block;
   padding:10px;
   border-radius:14px;
   background:rgba(0,0,0,.18);
