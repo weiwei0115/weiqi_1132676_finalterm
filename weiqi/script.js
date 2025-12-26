@@ -664,28 +664,38 @@ function ensureRAF(){
     }
 
     if(lvl === 2){
-      let best = null;
-      let bestScore = -1e18;
-      let bestNonPass = null, bestNonPassScore = -1e18;
-      for(const m of moves){
-        const sc = scoreHeuristicMove(color, m);
-        if(sc > bestScore){
-          bestScore = sc;
-          best = m;
-        }
-        if(!m.pass && sc > bestNonPassScore){
+  let best = null;
+  let bestScore = -1e18;
+
+  let bestNonPass = null;
+  let bestNonPassScore = -1e18;
+
+  for(const m of moves){
+    const sc = scoreHeuristicMove(color, m);
+
+    if(sc > bestScore){
+      bestScore = sc;
+      best = m;
+    }
+    if(!m.pass && sc > bestNonPassScore){
       bestNonPassScore = sc;
       bestNonPass = m;
     }
-      }
-        // 「該 pass」規則：如果最佳非 pass 也很差，且目前不是早期，就允許 pass
-  // 門檻你可自行調整（-2 / 0 / 2）
-  const empties = countEmpty(board);
-  const emptyRatio = empties / (N*N);
-  const lateEnough = (emptyRatio < 0.45); // 後盤/官子階段
+  }
 
-      return best || moves[moves.length-1];
-    }
+  // 後盤判斷
+  const empties = countEmpty(board);
+  const emptyRatio = empties / (N * N);
+  const lateEnough = (emptyRatio < 0.45);
+
+  // 後盤且所有非 pass 著都沒什麼價值 → pass 收束
+  if(lateEnough && bestNonPass && bestNonPassScore < 1){
+    return { pass:true };
+  }
+
+  return best || moves[moves.length - 1];
+}
+
  if(lateEnough && bestNonPass && bestNonPassScore < 1){
     // 代表下子幾乎沒價值，偏向 pass 收束
     return { pass:true };
