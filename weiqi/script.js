@@ -664,7 +664,7 @@ function chooseAIMove(color, lvl){
     return pool[(Math.random() * pool.length) | 0];
   }
 
-  // Lv2: Heuristic（會在後盤判斷是否 pass）
+  // Lv2: Heuristic（後盤會判斷 pass）
   if(lvl === 2){
     let best = null;
     let bestScore = -1e18;
@@ -679,16 +679,16 @@ function chooseAIMove(color, lvl){
         bestScore = sc;
         best = m;
       }
+
       if(!m.pass && sc > bestNonPassScore){
         bestNonPassScore = sc;
         bestNonPass = m;
       }
     }
 
-    // 後盤判斷（空點少 -> 可考慮收束 pass）
     const empties = countEmpty(board);
-    const emptyRatio = empties / (N * N);
-    const lateEnough = (emptyRatio < 0.45);
+    const emptyRatio = empties / (N*N);
+    const lateEnough = (emptyRatio < 0.45); // 後盤/官子階段
 
     if(lateEnough && bestNonPass && bestNonPassScore < 1){
       return { pass:true };
@@ -700,6 +700,7 @@ function chooseAIMove(color, lvl){
   // Lv3: Monte Carlo
   return chooseMonteCarlo(color);
 }
+
 
 
   function scoreHeuristicMove(color, m){
