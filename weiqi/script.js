@@ -1100,11 +1100,7 @@ if(!candidates.some(m => m.pass)){
 
     if(!scoringMode || !scoreBoard) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const W = rect.width;
-    const pad = W * 0.06;
-    const g = (W - 2*pad) / (N-1);
-    const r = g*0.42;
+   const { pad, g, r } = geom();
 
     // 在死子上畫 X
     ctx.lineWidth = Math.max(2, W*0.003);
